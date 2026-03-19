@@ -1,15 +1,47 @@
 "use client";
 
 import Image from "next/image";
-import { X, Minus, Plus, ShoppingBag } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { X, Minus, Plus, ShoppingBag, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useCartStore } from "@/stores/cart-store";
+import { useAuthStore } from "@/stores/auth-store";
 import { formatPrice, getDiscountedPrice } from "@/lib/utils";
+import { api } from "@/lib/api";
 
 export function CartDrawer() {
   const { items, isOpen, closeCart, removeItem, updateQuantity, totalPrice, clearCart } =
     useCartStore();
+  const { token } = useAuthStore();
+  const router = useRouter();
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [orderSuccess, setOrderSuccess] = useState<number | null>(null);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+
+  async function handleCheckout() {
+    if (!token) {
+      closeCart();
+      router.push("/login");
+      return;
+    }
+    setIsCheckingOut(true);
+    setCheckoutError(null);
+    try {
+      const payload = items.map((i) => ({
+        product_id: i.product.id,
+        quantity: i.quantity,
+      }));
+      const res = await api.checkout(payload);
+      setOrderSuccess(res.data.id);
+      clearCart();
+    } catch (err: unknown) {
+      setCheckoutError(err instanceof Error ? err.message : "Checkout failed");
+    } finally {
+      setIsCheckingOut(false);
+    }
+  }
 
   if (!isOpen) return null;
 
@@ -142,7 +174,26 @@ export function CartDrawer() {
         </div>
 
         {/* Footer */}
-        {items.length > 0 && (
+        {orderSuccess ? (
+          <div className="border-t px-6 py-8 flex flex-col items-center text-center space-y-3">
+            <CheckCircle className="h-12 w-12 text-green-500" />
+            <p className="text-lg font-semibold">Order placed!</p>
+            <p className="text-sm text-muted-foreground">Order #{orderSuccess}</p>
+            <Button
+              className="mt-2 w-full"
+              onClick={() => {
+                setOrderSuccess(null);
+                closeCart();
+                router.push("/orders");
+              }}
+            >
+              View Orders
+            </Button>
+            <Button variant="outline" className="w-full" onClick={() => { setOrderSuccess(null); closeCart(); }}>
+              Continue Shopping
+            </Button>
+          </div>
+        ) : items.length > 0 ? (
           <div className="border-t px-6 py-4 space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Subtotal</span>
@@ -150,9 +201,17 @@ export function CartDrawer() {
                 {formatPrice(totalPrice())}
               </span>
             </div>
+            {checkoutError && (
+              <p className="text-sm text-destructive">{checkoutError}</p>
+            )}
             <Separator />
-            <Button className="w-full" size="lg">
-              Checkout
+            <Button
+              className="w-full"
+              size="lg"
+              onClick={handleCheckout}
+              disabled={isCheckingOut}
+            >
+              {isCheckingOut ? "Placing order…" : "Checkout"}
             </Button>
             <Button
               variant="outline"
@@ -163,7 +222,7 @@ export function CartDrawer() {
               Clear Cart
             </Button>
           </div>
-        )}
+        ) : null}
       </aside>
     </>
   );

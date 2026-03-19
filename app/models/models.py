@@ -19,9 +19,10 @@ class User(Base):
     # New column for role
     role = Column(Enum("admin", "user", name="user_roles"), nullable=False, server_default="user")
 
-    # Relationship with carts
+    # Relationships
     carts = relationship("Cart", back_populates="user")
     sessions = relationship("UserSession", back_populates="user")
+    orders = relationship("Order", back_populates="user")
 
 
 class UserSession(Base):
@@ -100,3 +101,37 @@ class Product(Base):
 
     # Relationship with cart items
     cart_items = relationship("CartItem", back_populates="product")
+
+    # Relationship with order items
+    order_items = relationship("OrderItem", back_populates="product")
+
+
+class Order(Base):
+    __tablename__ = "orders"
+
+    id = Column(Integer, primary_key=True, nullable=False, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    status = Column(
+        Enum("pending", "confirmed", "shipped", "delivered", "cancelled", name="order_status"),
+        nullable=False,
+        server_default="confirmed",
+    )
+    total_amount = Column(Float, nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=text("NOW()"), nullable=False)
+
+    user = relationship("User", back_populates="orders")
+    order_items = relationship("OrderItem", back_populates="order")
+
+
+class OrderItem(Base):
+    __tablename__ = "order_items"
+
+    id = Column(Integer, primary_key=True, nullable=False, autoincrement=True)
+    order_id = Column(Integer, ForeignKey("orders.id", ondelete="CASCADE"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id", ondelete="SET NULL"), nullable=True)
+    quantity = Column(Integer, nullable=False)
+    unit_price = Column(Float, nullable=False)   # price at time of purchase
+    subtotal = Column(Float, nullable=False)
+
+    order = relationship("Order", back_populates="order_items")
+    product = relationship("Product", back_populates="order_items")

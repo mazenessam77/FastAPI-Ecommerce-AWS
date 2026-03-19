@@ -1,4 +1,4 @@
-from app.routers import products, categories, carts, users, auth, accounts
+from app.routers import products, categories, carts, users, auth, accounts, orders
 from app.db.database import Base, engine
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -62,6 +62,7 @@ app.include_router(carts.router)
 app.include_router(users.router)
 app.include_router(accounts.router)
 app.include_router(auth.router)
+app.include_router(orders.router)
 
 # All routers (and their models) are imported above — Base now knows every table.
 # create_all is idempotent: skips tables that already exist.

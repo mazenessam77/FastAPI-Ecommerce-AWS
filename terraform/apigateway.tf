@@ -115,6 +115,22 @@ resource "aws_apigatewayv2_route" "carts" {
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
+# Orders routes (JWT protected, includes /orders/seed which checks its own key)
+resource "aws_apigatewayv2_route" "orders" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "ANY /orders/{proxy+}"
+  target             = "integrations/${aws_apigatewayv2_integration.microservice["orders"].id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+# Allow unauthenticated access to /orders/seed (protected by its own x-seed-key header)
+resource "aws_apigatewayv2_route" "orders_seed" {
+  api_id    = aws_apigatewayv2_api.main.id
+  route_key = "POST /orders/seed"
+  target    = "integrations/${aws_apigatewayv2_integration.microservice["orders"].id}"
+}
+
 # Account/profile routes (JWT protected) — was missing entirely
 resource "aws_apigatewayv2_route" "me" {
   api_id             = aws_apigatewayv2_api.main.id

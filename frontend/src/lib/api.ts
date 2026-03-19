@@ -3,6 +3,7 @@ import type {
   Category,
   AuthTokens,
   User,
+  Order,
   ApiResponse,
   PaginatedResponse,
   ProductFilters,
@@ -114,6 +115,24 @@ class ApiClient {
         items: [{ product_id: productId, quantity }],
       }),
     });
+  }
+
+  // ── Orders ──
+  async checkout(
+    items: { product_id: number; quantity: number }[]
+  ): Promise<ApiResponse<Order>> {
+    return this.request("/orders/checkout", {
+      method: "POST",
+      body: JSON.stringify({ items }),
+    });
+  }
+
+  async getOrders(page = 1, limit = 20): Promise<PaginatedResponse<Order>> {
+    return this.request(`/orders/?page=${page}&limit=${limit}`);
+  }
+
+  async getOrder(id: number): Promise<ApiResponse<Order>> {
+    return this.request(`/orders/${id}`);
   }
 }
 

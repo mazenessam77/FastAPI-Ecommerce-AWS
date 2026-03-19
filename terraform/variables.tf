@@ -67,6 +67,15 @@ variable "access_token_expire_minutes" {
   default     = 30
 }
 
+# ── Seed ──
+
+variable "seed_secret" {
+  description = "Secret key required to call the /orders/seed endpoint"
+  type        = string
+  sensitive   = true
+  default     = "change-me-in-prod"
+}
+
 # ── Lambda ──
 
 variable "lambda_memory" {

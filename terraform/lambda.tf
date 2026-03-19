@@ -97,6 +97,7 @@ locals {
     access_token_expire_minutes = tostring(var.access_token_expire_minutes)
     DB_SECRET_ARN               = aws_secretsmanager_secret.db_credentials.arn
     SQS_QUEUE_URL               = aws_sqs_queue.order_queue.url
+    seed_secret                 = var.seed_secret
   }
 
   microservices = {
@@ -105,6 +106,7 @@ locals {
     products   = { description = "Product catalog microservice — CRUD + search" }
     categories = { description = "Category management microservice" }
     carts      = { description = "Shopping cart microservice — cart + checkout" }
+    orders     = { description = "Orders microservice — checkout + order history" }
   }
 }
 

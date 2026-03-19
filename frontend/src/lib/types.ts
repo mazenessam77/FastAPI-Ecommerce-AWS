@@ -49,6 +49,23 @@ export interface PaginatedResponse<T> {
   data: T[];
 }
 
+export interface OrderItem {
+  id: number;
+  product_id: number | null;
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
+}
+
+export interface Order {
+  id: number;
+  user_id: number;
+  status: "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
+  total_amount: number;
+  created_at: string;
+  order_items: OrderItem[];
+}
+
 export interface ProductFilters {
   category_id?: number;
   min_price?: number;

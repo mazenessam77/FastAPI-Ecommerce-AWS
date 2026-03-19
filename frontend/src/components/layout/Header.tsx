@@ -26,6 +26,7 @@ export function Header() {
   const navLinks = [
     { href: "/", label: "Home" },
     { href: "/products", label: "Shop" },
+    ...(isAuthenticated ? [{ href: "/orders", label: "Orders" }] : []),
   ];
 
   return (
