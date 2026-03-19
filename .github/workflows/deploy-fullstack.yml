@@ -41,24 +41,18 @@ jobs:
         id: ecr-login
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Set up QEMU (for arm64 cross-build)
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Build & Push Backend Image
         env:
           REGISTRY: ${{ steps.ecr-login.outputs.registry }}
           TAG: ${{ github.sha }}
         run: |
-          echo "Building backend image (remote - no local Docker needed)..."
-          docker buildx build \
-            --platform linux/arm64 \
-            --push \
+          echo "Building backend image (x86_64 native on runner)..."
+          docker build \
             -t $REGISTRY/$BACKEND_ECR:$TAG \
             -t $REGISTRY/$BACKEND_ECR:latest \
             .
+          docker push $REGISTRY/$BACKEND_ECR:$TAG
+          docker push $REGISTRY/$BACKEND_ECR:latest
           echo "✅ Backend image pushed: $REGISTRY/$BACKEND_ECR:$TAG"
 
   # ────────────────────────────────────────────────────────────────────────

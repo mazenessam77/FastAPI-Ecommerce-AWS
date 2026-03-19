@@ -83,7 +83,7 @@ locals {
     image_uri     = "${aws_ecr_repository.api.repository_url}:latest"
     memory_size   = var.lambda_memory
     timeout       = var.lambda_timeout
-    architectures = ["arm64"]
+    architectures = ["x86_64"]
   }
 
   lambda_env_vars = {
@@ -144,7 +144,7 @@ resource "aws_lambda_function" "worker" {
   image_uri     = "${aws_ecr_repository.api.repository_url}:latest"
   memory_size   = 256
   timeout       = 60
-  architectures = ["arm64"]
+  architectures = ["x86_64"]
 
   vpc_config {
     subnet_ids         = [aws_subnet.private_a.id, aws_subnet.private_b.id]
