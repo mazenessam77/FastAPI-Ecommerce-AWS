@@ -158,14 +158,14 @@ jobs:
           IMAGE: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.BACKEND_ECR }}:${{ github.sha }}
         run: |
           echo "🚀 Deploying Lambda functions..."
-          for svc in auth users products categories carts worker; do
+          for svc in auth users products categories carts orders worker; do
             echo "  → Updating ecommerce-${svc}..."
             aws lambda update-function-code \
               --function-name "ecommerce-${svc}" \
               --image-uri "$IMAGE" \
               --region $AWS_REGION 2>&1 || echo "  ⚠ Skip (not yet created)"
           done
-          echo "✅ Lambda deploy complete"
+          echo " Lambda deploy complete"
 
       - name: Update ECS Frontend Service
         run: |
@@ -175,7 +175,7 @@ jobs:
             --service ecommerce-frontend-svc \
             --force-new-deployment \
             --region $AWS_REGION 2>&1 || echo "⚠ ECS service may need first image"
-          echo "✅ ECS deploy triggered"
+          echo " ECS deploy triggered"
 
   # ────────────────────────────────────────────────────────────────────────
   # 5. SMOKE TEST — Verify production
