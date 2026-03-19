@@ -63,8 +63,6 @@ app.include_router(users.router)
 app.include_router(accounts.router)
 app.include_router(auth.router)
 
-
-@app.on_event("startup")
-async def create_tables():
-    # All models are now imported (via routers above), so Base has every table registered
-    Base.metadata.create_all(bind=engine)
+# All routers (and their models) are imported above — Base now knows every table.
+# create_all is idempotent: skips tables that already exist.
+Base.metadata.create_all(bind=engine)
