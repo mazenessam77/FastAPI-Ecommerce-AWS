@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShoppingBag, Package } from "lucide-react";
+import { ShoppingBag, Package, Truck } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { api } from "@/lib/api";
 import type { Order } from "@/lib/types";
@@ -80,7 +80,7 @@ export default function OrdersPage() {
                 <div>
                   <span className="font-semibold">Order #{order.id}</span>
                   <span className="ml-3 text-sm text-muted-foreground">
-                    {new Date(order.created_at).toLocaleDateString()}
+                    {new Date(order.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                   </span>
                 </div>
                 <span
@@ -89,6 +89,23 @@ export default function OrdersPage() {
                   {order.status}
                 </span>
               </div>
+
+              {/* Delivery estimate */}
+              {(order.status === "confirmed" || order.status === "pending") && (() => {
+                const arrival = new Date(order.created_at);
+                arrival.setDate(arrival.getDate() + 2);
+                return (
+                  <div className="flex items-center gap-2 rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
+                    <Truck className="h-4 w-4 shrink-0" />
+                    <span>
+                      Estimated delivery:{" "}
+                      <strong>
+                        {arrival.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+                      </strong>
+                    </span>
+                  </div>
+                );
+              })()}
 
               <ul className="divide-y text-sm">
                 {order.order_items.map((item) => (
