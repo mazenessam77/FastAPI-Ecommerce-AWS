@@ -2,9 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ShoppingCart, Star } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
+import { ShoppingCart, Star, Check } from "lucide-react";
 import { useCartStore } from "@/stores/cart-store";
 import { formatPrice, getDiscountedPrice } from "@/lib/utils";
 import type { Product } from "@/lib/types";
@@ -15,75 +14,101 @@ interface ProductCardProps {
 
 export function ProductCard({ product }: ProductCardProps) {
   const addItem = useCartStore((s) => s.addItem);
-  const discountedPrice = getDiscountedPrice(
-    product.price,
-    product.discount_percentage
-  );
+  const [added, setAdded] = useState(false);
+
+  const discountedPrice = getDiscountedPrice(product.price, product.discount_percentage);
+  const hasDiscount = product.discount_percentage > 0;
+  const isLowStock = product.stock > 0 && product.stock <= 5;
+
+  function handleQuickAdd(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    addItem(product);
+    setAdded(true);
+    setTimeout(() => setAdded(false), 1600);
+  }
+
+  const ratingStars = Math.round(product.rating);
 
   return (
-    <article className="group relative flex flex-col overflow-hidden rounded-xl border bg-card transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5">
-      {/* Image */}
+    <article className="group relative flex flex-col overflow-hidden rounded-2xl bg-white border border-border/60 shadow-card hover:shadow-card-hover hover:-translate-y-1 transition-all duration-300 ease-out">
+
+      {/* ── Image ── */}
       <Link
         href={`/products/${product.id}`}
-        className="relative aspect-square overflow-hidden bg-muted"
+        className="relative block overflow-hidden bg-muted"
+        style={{ aspectRatio: "4 / 5" }}
       >
         <Image
           src={product.thumbnail || "/placeholder.svg"}
           alt={product.title}
           fill
-          className="object-cover transition-transform duration-500 group-hover:scale-105"
+          className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
         />
-        {product.discount_percentage > 0 && (
-          <Badge className="absolute left-3 top-3" variant="destructive">
+
+        {/* Discount badge */}
+        {hasDiscount && (
+          <span className="absolute left-3 top-3 rounded-full bg-red-500 px-2.5 py-0.5 text-[11px] font-bold text-white shadow">
             -{product.discount_percentage}%
-          </Badge>
+          </span>
         )}
+
+        {/* Low stock badge */}
+        {isLowStock && (
+          <span className="absolute right-3 top-3 rounded-full bg-amber-500 px-2.5 py-0.5 text-[11px] font-bold text-white shadow">
+            Only {product.stock} left
+          </span>
+        )}
+
+        {/* Quick-add overlay — slides up on hover */}
+        <div className="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] px-3 pb-3 pt-8 bg-gradient-to-t from-black/60 to-transparent">
+          <button
+            onClick={handleQuickAdd}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-2.5 text-sm font-semibold text-foreground shadow-lg hover:bg-primary hover:text-primary-foreground transition-colors duration-150"
+            aria-label={`Add ${product.title} to cart`}
+          >
+            {added
+              ? <><Check className="h-4 w-4 text-green-500" /> Added to cart</>
+              : <><ShoppingCart className="h-4 w-4" /> Quick Add</>
+            }
+          </button>
+        </div>
       </Link>
 
-      {/* Details */}
-      <div className="flex flex-1 flex-col p-4">
-        <p className="text-xs text-muted-foreground uppercase tracking-wider">
+      {/* ── Details ── */}
+      <div className="flex flex-1 flex-col gap-1.5 p-4">
+        {/* Brand */}
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/80">
           {product.brand}
         </p>
+
+        {/* Title */}
         <Link href={`/products/${product.id}`}>
-          <h3 className="mt-1 text-sm font-medium line-clamp-2 transition-colors hover:text-primary/80">
+          <h3 className="text-sm font-semibold leading-snug line-clamp-2 text-foreground hover:text-primary/70 transition-colors">
             {product.title}
           </h3>
         </Link>
 
-        {/* Rating */}
-        <div className="mt-2 flex items-center space-x-1">
-          <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
-          <span className="text-xs text-muted-foreground">
-            {product.rating.toFixed(1)}
-          </span>
+        {/* Stars */}
+        <div className="flex items-center gap-1.5">
+          <div className="flex">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Star
+                key={i}
+                className={`h-3 w-3 ${i <= ratingStars ? "fill-amber-400 text-amber-400" : "fill-muted text-muted"}`}
+              />
+            ))}
+          </div>
+          <span className="text-[11px] text-muted-foreground">{product.rating.toFixed(1)}</span>
         </div>
 
         {/* Price */}
-        <div className="mt-auto flex items-center justify-between pt-3">
-          <div className="flex items-baseline space-x-2">
-            <span className="text-lg font-bold">
-              {formatPrice(discountedPrice)}
-            </span>
-            {product.discount_percentage > 0 && (
-              <span className="text-sm text-muted-foreground line-through">
-                {formatPrice(product.price)}
-              </span>
-            )}
-          </div>
-          <Button
-            size="icon"
-            variant="secondary"
-            className="h-9 w-9 rounded-full"
-            onClick={(e) => {
-              e.preventDefault();
-              addItem(product);
-            }}
-            aria-label={`Add ${product.title} to cart`}
-          >
-            <ShoppingCart className="h-4 w-4" />
-          </Button>
+        <div className="mt-auto flex items-baseline gap-2 pt-2">
+          <span className="text-base font-bold tracking-tight">{formatPrice(discountedPrice)}</span>
+          {hasDiscount && (
+            <span className="text-xs text-muted-foreground line-through">{formatPrice(product.price)}</span>
+          )}
         </div>
       </div>
     </article>
