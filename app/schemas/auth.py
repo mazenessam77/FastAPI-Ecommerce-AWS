@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 from app.schemas.carts import CartBase
 
 
@@ -48,3 +48,16 @@ class TokenResponse(BaseModel):
     refresh_token: str
     token_type: str = 'Bearer'
     expires_in: int
+
+
+class SessionOut(BaseModel):
+    id: int
+    user_id: int
+    user_agent: Optional[str]
+    ip_address: Optional[str]
+    created_at: datetime
+    expires_at: datetime
+    is_active: bool
+
+    class Config(BaseConfig):
+        pass

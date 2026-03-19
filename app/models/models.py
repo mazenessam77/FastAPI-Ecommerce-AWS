@@ -21,6 +21,22 @@ class User(Base):
 
     # Relationship with carts
     carts = relationship("Cart", back_populates="user")
+    sessions = relationship("UserSession", back_populates="user")
+
+
+class UserSession(Base):
+    __tablename__ = "user_sessions"
+
+    id = Column(Integer, primary_key=True, nullable=False, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    refresh_token = Column(String, nullable=False)  # SHA-256 hash of raw token
+    user_agent = Column(String, nullable=True)
+    ip_address = Column(String, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=text("NOW()"), nullable=False)
+    expires_at = Column(TIMESTAMP(timezone=True), nullable=False)
+    is_active = Column(Boolean, server_default="True", nullable=False)
+
+    user = relationship("User", back_populates="sessions")
 
 
 class Cart(Base):

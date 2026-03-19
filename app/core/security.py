@@ -1,3 +1,4 @@
+import hashlib
 from fastapi.security.http import HTTPAuthorizationCredentials
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
@@ -28,9 +29,14 @@ def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
 
+# Hash a token for safe storage
+def hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
 # Create Access & Refresh Token
-async def get_user_token(id: int, refresh_token=None):
-    payload = {"id": id}
+async def get_user_token(id: int, session_id: int, refresh_token=None):
+    payload = {"id": id, "session_id": session_id}
 
     access_token_expiry = timedelta(minutes=settings.access_token_expire_minutes)
 
@@ -58,7 +64,10 @@ async def create_access_token(data: dict, access_token_expiry=None):
 
 # Create Refresh Token
 async def create_refresh_token(data):
-    return jwt.encode(data, settings.secret_key, settings.algorithm)
+    payload = data.copy()
+    expire = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
+    payload.update({"exp": expire})
+    return jwt.encode(payload, settings.secret_key, settings.algorithm)
 
 
 # Get Payload Of Token
@@ -67,6 +76,10 @@ def get_token_payload(token):
         return jwt.decode(token, settings.secret_key, [settings.algorithm])
     except JWTError:
         raise ResponseHandler.invalid_token('access')
+
+
+def get_token_data(token: HTTPAuthorizationCredentials) -> dict:
+    return get_token_payload(token.credentials)
 
 
 def get_current_user(token):
