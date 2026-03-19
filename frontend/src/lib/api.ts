@@ -53,7 +53,7 @@ class ApiClient {
   async login(
     username: string,
     password: string
-  ): Promise<ApiResponse<AuthTokens>> {
+  ): Promise<AuthTokens> {
     const formData = new URLSearchParams();
     formData.append("username", username);
     formData.append("password", password);
