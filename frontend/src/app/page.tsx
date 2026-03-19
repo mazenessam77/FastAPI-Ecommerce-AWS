@@ -37,6 +37,10 @@ const CATEGORY_EMOJI: Record<string, string> = {
   "Beauty & Health": "✨",
   "Toys & Games": "🎮",
   "Automotive": "🚗",
+  "Office Supplies": "🖊️",
+  "Pet Supplies": "🐾",
+  "Food & Beverages": "☕",
+  "Music & Instruments": "🎸",
 };
 
 const TRUST_ITEMS = [
