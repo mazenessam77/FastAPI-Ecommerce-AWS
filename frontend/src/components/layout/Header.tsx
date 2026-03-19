@@ -21,12 +21,16 @@ export function Header() {
   const [searchOpen, setSearchOpen] = useState(false);
   const totalItems = useCartStore((s) => s.totalItems());
   const openCart = useCartStore((s) => s.openCart);
-  const { isAuthenticated, user, logout } = useAuthStore();
+  const { isAuthenticated, user, logout, _hasHydrated } = useAuthStore();
+
+  // Don't render auth-sensitive UI until Zustand has read from localStorage.
+  // Prevents the "flash of logged-out state" on page load / navigation.
+  const authed = _hasHydrated && isAuthenticated;
 
   const navLinks = [
     { href: "/", label: "Home" },
     { href: "/products", label: "Shop" },
-    ...(isAuthenticated ? [{ href: "/orders", label: "Orders" }] : []),
+    ...(authed ? [{ href: "/orders", label: "Orders" }] : []),
   ];
 
   return (
@@ -79,8 +83,10 @@ export function Header() {
             <Search className="h-5 w-5" />
           </Button>
 
-          {/* Auth */}
-          {isAuthenticated ? (
+          {/* Auth — hidden until store has hydrated from localStorage */}
+          {!_hasHydrated ? (
+            <div className="hidden sm:block w-8 h-8" /> /* placeholder keeps layout stable */
+          ) : authed ? (
             <div className="hidden items-center space-x-2 sm:flex">
               <span className="text-sm text-muted-foreground">
                 {user?.full_name || user?.username}
@@ -154,7 +160,7 @@ export function Header() {
                 {link.label}
               </Link>
             ))}
-            {!isAuthenticated && (
+            {!authed && _hasHydrated && (
               <Link
                 href="/login"
                 className="text-sm font-medium text-muted-foreground"

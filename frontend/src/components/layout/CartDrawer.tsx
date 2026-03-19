@@ -22,7 +22,7 @@ function deliveryDate() {
 export function CartDrawer() {
   const { items, isOpen, closeCart, removeItem, updateQuantity, totalPrice, clearCart } =
     useCartStore();
-  const { token } = useAuthStore();
+  const { token, _hasHydrated } = useAuthStore();
   const router = useRouter();
 
   const [step, setStep] = useState<Step>("cart");
@@ -262,7 +262,7 @@ export function CartDrawer() {
                 <Button
                   className="w-full" size="lg"
                   onClick={() => {
-                    if (!token) { handleClose(); router.push("/login"); return; }
+                    if (!_hasHydrated || !token) { handleClose(); router.push("/login"); return; }
                     setStep("confirm");
                   }}
                 >
