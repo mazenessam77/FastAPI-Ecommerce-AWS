@@ -1,5 +1,7 @@
 from app.routers import products, categories, carts, users, auth, accounts
+from app.db.database import Base, engine
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 
 description = """
@@ -46,6 +48,13 @@ app = FastAPI(
     },
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(products.router)
 app.include_router(categories.router)
@@ -53,3 +62,9 @@ app.include_router(carts.router)
 app.include_router(users.router)
 app.include_router(accounts.router)
 app.include_router(auth.router)
+
+
+@app.on_event("startup")
+async def create_tables():
+    # All models are now imported (via routers above), so Base has every table registered
+    Base.metadata.create_all(bind=engine)
