@@ -1,0 +1,64 @@
+###############################################################################
+# docker-compose.yml — Full-Stack Local Development
+# Runs Backend (FastAPI) + Frontend (Next.js) + PostgreSQL
+###############################################################################
+
+services:
+  # ── PostgreSQL Database ──
+  db:
+    image: postgres:16-alpine
+    container_name: ecommerce-db
+    environment:
+      POSTGRES_USER: ecommerce
+      POSTGRES_PASSWORD: localdev123
+      POSTGRES_DB: ecommerce_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ecommerce"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── FastAPI Backend ──
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+    container_name: ecommerce-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - db_username=ecommerce
+      - db_password=localdev123
+      - db_hostname=db
+      - db_port=5432
+      - db_name=ecommerce_db
+      - secret_key=local-dev-secret-key-change-in-production
+      - algorithm=HS256
+      - access_token_expire_minutes=30
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app
+
+  # ── Next.js Frontend ──
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+    container_name: ecommerce-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

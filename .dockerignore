@@ -1,0 +1,16 @@
+__pycache__
+*.pyc
+*.pyo
+.git
+.gitignore
+.env
+*.md
+.vscode
+.idea
+*.png
+aws_architecture_diagram.py
+terraform/
+.github/
+venv/
+.mypy_cache/
+.pytest_cache/

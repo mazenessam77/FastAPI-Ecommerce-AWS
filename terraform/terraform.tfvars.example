@@ -1,0 +1,20 @@
+# Copy this file to terraform.tfvars and fill in your values
+# NEVER commit terraform.tfvars to version control
+
+aws_region  = "us-east-1"
+environment = "production"
+
+# Database
+db_instance_class = "db.t3.micro"
+db_name           = "ecommerce_db"
+db_username       = "ecommerce_admin"
+db_password       = "CHANGE_ME_USE_A_STRONG_PASSWORD"
+
+# JWT
+jwt_secret_key              = "CHANGE_ME_USE_A_RANDOM_STRING"
+jwt_algorithm               = "HS256"
+access_token_expire_minutes = 30
+
+# Lambda
+lambda_memory  = 512
+lambda_timeout = 30

@@ -21,13 +21,23 @@ site_build
 venv
 docs.zip
 archive.zip
-# alembic
 alembic/versions/
 .env
-# vim temporary files
 *~
 .*.sw?
 .cache
-
-# macOS
 .DS_Store
+
+# Terraform state & secrets
+terraform/.terraform/
+terraform/*.tfstate*
+terraform/.terraform.lock.hcl
+terraform/terraform.tfvars
+terraform/tfplan
+
+# Node / Frontend
+frontend/node_modules/
+frontend/.next/
+
+# Docker logs
+*.log

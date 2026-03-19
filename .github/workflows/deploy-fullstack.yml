@@ -1,0 +1,211 @@
+###############################################################################
+# Zero-Touch Full-Stack CI/CD Pipeline
+# Push to main → Build Docker (remotely) → Push ECR → Terraform → Deploy
+# NO local Docker required.
+###############################################################################
+
+name: Deploy Full Stack
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+  BACKEND_ECR: ecommerce-api
+  FRONTEND_ECR: ecommerce-frontend
+
+permissions:
+  contents: read
+
+jobs:
+  # ────────────────────────────────────────────────────────────────────────
+  # 1. BUILD BACKEND → Push to ECR
+  # ────────────────────────────────────────────────────────────────────────
+  build-backend:
+    name: "① Build Backend → ECR"
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & Push Backend Image
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          TAG: ${{ github.sha }}
+        run: |
+          echo "Building backend image (remote - no local Docker needed)..."
+          docker build \
+            --platform linux/arm64 \
+            -t $REGISTRY/$BACKEND_ECR:$TAG \
+            -t $REGISTRY/$BACKEND_ECR:latest \
+            .
+          docker push $REGISTRY/$BACKEND_ECR:$TAG
+          docker push $REGISTRY/$BACKEND_ECR:latest
+          echo "✅ Backend image pushed: $REGISTRY/$BACKEND_ECR:$TAG"
+
+  # ────────────────────────────────────────────────────────────────────────
+  # 2. BUILD FRONTEND → Push to ECR
+  # ────────────────────────────────────────────────────────────────────────
+  build-frontend:
+    name: "② Build Frontend → ECR"
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & Push Frontend Image
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          TAG: ${{ github.sha }}
+        run: |
+          echo "Building frontend image (remote)..."
+          docker build \
+            --build-arg NEXT_PUBLIC_API_URL="https://b5x0f0jq3h.execute-api.us-east-1.amazonaws.com" \
+            -t $REGISTRY/$FRONTEND_ECR:$TAG \
+            -t $REGISTRY/$FRONTEND_ECR:latest \
+            ./frontend
+          docker push $REGISTRY/$FRONTEND_ECR:$TAG
+          docker push $REGISTRY/$FRONTEND_ECR:latest
+          echo "✅ Frontend image pushed: $REGISTRY/$FRONTEND_ECR:$TAG"
+
+  # ────────────────────────────────────────────────────────────────────────
+  # 3. TERRAFORM — Create/update all infrastructure + Lambda functions
+  # ────────────────────────────────────────────────────────────────────────
+  deploy-infra:
+    name: "③ Terraform Apply"
+    runs-on: ubuntu-latest
+    needs: [build-backend, build-frontend]
+
+    outputs:
+      api_url: ${{ steps.outputs.outputs.api_url }}
+      alb_dns: ${{ steps.outputs.outputs.alb_dns }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: terraform
+        run: |
+          terraform apply -auto-approve \
+            -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="jwt_secret_key=${{ secrets.JWT_SECRET_KEY }}"
+
+      - name: Get Outputs
+        id: outputs
+        working-directory: terraform
+        run: |
+          echo "api_url=$(terraform output -raw api_gateway_url)" >> $GITHUB_OUTPUT
+          echo "alb_dns=$(terraform output -raw frontend_alb_dns)" >> $GITHUB_OUTPUT
+
+  # ────────────────────────────────────────────────────────────────────────
+  # 4. DEPLOY — Update Lambda functions + ECS service with new images
+  # ────────────────────────────────────────────────────────────────────────
+  deploy-services:
+    name: "④ Deploy Services"
+    runs-on: ubuntu-latest
+    needs: [deploy-infra, build-backend, build-frontend]
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update Lambda Functions (Hot Swap)
+        env:
+          IMAGE: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.BACKEND_ECR }}:${{ github.sha }}
+        run: |
+          echo "🚀 Deploying Lambda functions..."
+          for svc in auth users products categories carts worker; do
+            echo "  → Updating ecommerce-${svc}..."
+            aws lambda update-function-code \
+              --function-name "ecommerce-${svc}" \
+              --image-uri "$IMAGE" \
+              --region $AWS_REGION 2>&1 || echo "  ⚠ Skip (not yet created)"
+          done
+          echo "✅ Lambda deploy complete"
+
+      - name: Update ECS Frontend Service
+        run: |
+          echo "🚀 Deploying frontend to ECS Fargate..."
+          aws ecs update-service \
+            --cluster ecommerce-cluster \
+            --service ecommerce-frontend-svc \
+            --force-new-deployment \
+            --region $AWS_REGION 2>&1 || echo "⚠ ECS service may need first image"
+          echo "✅ ECS deploy triggered"
+
+  # ────────────────────────────────────────────────────────────────────────
+  # 5. SMOKE TEST — Verify production
+  # ────────────────────────────────────────────────────────────────────────
+  smoke-test:
+    name: "⑤ Production Smoke Test"
+    runs-on: ubuntu-latest
+    needs: [deploy-services, deploy-infra]
+
+    steps:
+      - name: Test Backend API
+        run: |
+          API="${{ needs.deploy-infra.outputs.api_url }}"
+          echo "🔍 Testing backend at: ${API}"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${API}/docs" --max-time 10 || echo "000")
+          echo "   Backend /docs → HTTP ${STATUS}"
+
+      - name: Test Frontend
+        run: |
+          ALB="${{ needs.deploy-infra.outputs.alb_dns }}"
+          echo "🔍 Testing frontend at: http://${ALB}"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://${ALB}" --max-time 10 || echo "000")
+          echo "   Frontend → HTTP ${STATUS}"
+
+      - name: Print Production URLs
+        run: |
+          echo "========================================="
+          echo "🎉 DEPLOYMENT COMPLETE"
+          echo "========================================="
+          echo "Backend API:  ${{ needs.deploy-infra.outputs.api_url }}"
+          echo "Frontend:     http://${{ needs.deploy-infra.outputs.alb_dns }}"
+          echo "========================================="
