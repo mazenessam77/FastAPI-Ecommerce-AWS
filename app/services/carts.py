@@ -1,8 +1,7 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.models.models import Cart, CartItem, Product
 from app.schemas.carts import CartUpdate, CartCreate
 from app.utils.responses import ResponseHandler
-from sqlalchemy.orm import joinedload
 from app.core.security import get_current_user
 
 
@@ -11,7 +10,14 @@ class CartService:
     @staticmethod
     def get_all_carts(token, db: Session, page: int, limit: int):
         user_id = get_current_user(token)
-        carts = db.query(Cart).filter(Cart.user_id == user_id).offset((page - 1) * limit).limit(limit).all()
+        carts = (
+            db.query(Cart)
+            .options(joinedload(Cart.cart_items).joinedload(CartItem.product))
+            .filter(Cart.user_id == user_id)
+            .offset((page - 1) * limit)
+            .limit(limit)
+            .all()
+        )
         message = f"Page {page} with {limit} carts"
         return ResponseHandler.success(message, carts)
 
@@ -19,7 +25,12 @@ class CartService:
     @staticmethod
     def get_cart(token, db: Session, cart_id: int):
         user_id = get_current_user(token)
-        cart = db.query(Cart).filter(Cart.id == cart_id, Cart.user_id == user_id).first()
+        cart = (
+            db.query(Cart)
+            .options(joinedload(Cart.cart_items).joinedload(CartItem.product))
+            .filter(Cart.id == cart_id, Cart.user_id == user_id)
+            .first()
+        )
         if not cart:
             ResponseHandler.not_found_error("Cart", cart_id)
         return ResponseHandler.get_single_success("cart", cart_id, cart)
@@ -41,11 +52,12 @@ class CartService:
             if not product:
                 return ResponseHandler.not_found_error("Product", product_id)
 
-            subtotal = quantity * product.price * (product.discount_percentage / 100)
+            # Correct: price after discount, not discount amount
+            subtotal = quantity * product.price * (1 - product.discount_percentage / 100)
             cart_item = CartItem(product_id=product_id, quantity=quantity, subtotal=subtotal)
             total_amount += subtotal
-
             cart_items.append(cart_item)
+
         cart_db = Cart(cart_items=cart_items, user_id=user_id, total_amount=total_amount, **cart_dict)
         db.add(cart_db)
         db.commit()
@@ -64,6 +76,7 @@ class CartService:
         # Delete existing cart_items
         db.query(CartItem).filter(CartItem.cart_id == cart_id).delete()
 
+        new_total = 0
         for item in updated_cart.cart_items:
             product_id = item.product_id
             quantity = item.quantity
@@ -72,7 +85,9 @@ class CartService:
             if not product:
                 return ResponseHandler.not_found_error("Product", product_id)
 
-            subtotal = quantity * product.price * (product.discount_percentage / 100)
+            # Correct: price after discount
+            subtotal = quantity * product.price * (1 - product.discount_percentage / 100)
+            new_total += subtotal
 
             cart_item = CartItem(
                 cart_id=cart_id,
@@ -82,7 +97,8 @@ class CartService:
             )
             db.add(cart_item)
 
-        cart.total_amount = sum(item.subtotal for item in cart.cart_items)
+        # Use accumulated total from new items, not stale ORM relationship
+        cart.total_amount = new_total
 
         db.commit()
         db.refresh(cart)

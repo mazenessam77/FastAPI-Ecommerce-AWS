@@ -98,6 +98,11 @@ class ApiClient {
     return this.request("/categories/");
   }
 
+  // ── Account ──
+  async getMe(): Promise<ApiResponse<User>> {
+    return this.request("/me/");
+  }
+
   // ── Cart ──
   async addToCart(
     productId: number,

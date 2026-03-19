@@ -93,5 +93,7 @@ def check_admin_role(
     user = get_token_payload(token.credentials)
     user_id = user.get('id')
     role_user = db.query(User).filter(User.id == user_id).first()
+    if not role_user:
+        raise HTTPException(status_code=401, detail="User not found")
     if role_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin role required")

@@ -31,9 +31,12 @@ resource "aws_db_instance" "postgres" {
 
   multi_az            = false
   publicly_accessible = false
-  skip_final_snapshot = true
+  skip_final_snapshot  = false
+  final_snapshot_identifier = "${var.project_name}-db-final-snapshot"
+  deletion_protection  = true
+  storage_encrypted    = true
 
-  backup_retention_period = 7
+  backup_retention_period = 14
   backup_window           = "03:00-04:00"
   maintenance_window      = "Mon:04:00-Mon:05:00"
 

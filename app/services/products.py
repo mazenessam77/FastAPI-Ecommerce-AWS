@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.models.models import Product, Category
 from app.schemas.products import ProductCreate, ProductUpdate
 from app.utils.responses import ResponseHandler
@@ -7,13 +7,25 @@ from app.utils.responses import ResponseHandler
 class ProductService:
     @staticmethod
     def get_all_products(db: Session, page: int, limit: int, search: str = ""):
-        products = db.query(Product).order_by(Product.id.asc()).filter(
-            Product.title.contains(search)).limit(limit).offset((page - 1) * limit).all()
+        products = (
+            db.query(Product)
+            .options(joinedload(Product.category))
+            .order_by(Product.id.asc())
+            .filter(Product.title.contains(search))
+            .limit(limit)
+            .offset((page - 1) * limit)
+            .all()
+        )
         return {"message": f"Page {page} with {limit} products", "data": products}
 
     @staticmethod
     def get_product(db: Session, product_id: int):
-        product = db.query(Product).filter(Product.id == product_id).first()
+        product = (
+            db.query(Product)
+            .options(joinedload(Product.category))
+            .filter(Product.id == product_id)
+            .first()
+        )
         if not product:
             ResponseHandler.not_found_error("Product", product_id)
         return ResponseHandler.get_single_success(product.title, product_id, product)

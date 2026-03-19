@@ -76,8 +76,14 @@ resource "aws_apigatewayv2_route" "users" {
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
-# Products routes (JWT protected for write ops)
-resource "aws_apigatewayv2_route" "products" {
+# Products routes — GET is public, writes (POST/PUT/DELETE) require JWT
+resource "aws_apigatewayv2_route" "products_read" {
+  api_id    = aws_apigatewayv2_api.main.id
+  route_key = "GET /products/{proxy+}"
+  target    = "integrations/${aws_apigatewayv2_integration.microservice["products"].id}"
+}
+
+resource "aws_apigatewayv2_route" "products_write" {
   api_id             = aws_apigatewayv2_api.main.id
   route_key          = "ANY /products/{proxy+}"
   target             = "integrations/${aws_apigatewayv2_integration.microservice["products"].id}"
@@ -85,8 +91,14 @@ resource "aws_apigatewayv2_route" "products" {
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
-# Categories routes
-resource "aws_apigatewayv2_route" "categories" {
+# Categories routes — GET is public, writes require JWT
+resource "aws_apigatewayv2_route" "categories_read" {
+  api_id    = aws_apigatewayv2_api.main.id
+  route_key = "GET /categories/{proxy+}"
+  target    = "integrations/${aws_apigatewayv2_integration.microservice["categories"].id}"
+}
+
+resource "aws_apigatewayv2_route" "categories_write" {
   api_id             = aws_apigatewayv2_api.main.id
   route_key          = "ANY /categories/{proxy+}"
   target             = "integrations/${aws_apigatewayv2_integration.microservice["categories"].id}"
@@ -99,6 +111,15 @@ resource "aws_apigatewayv2_route" "carts" {
   api_id             = aws_apigatewayv2_api.main.id
   route_key          = "ANY /carts/{proxy+}"
   target             = "integrations/${aws_apigatewayv2_integration.microservice["carts"].id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+# Account/profile routes (JWT protected) — was missing entirely
+resource "aws_apigatewayv2_route" "me" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "ANY /me/{proxy+}"
+  target             = "integrations/${aws_apigatewayv2_integration.microservice["users"].id}"
   authorization_type = "CUSTOM"
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }

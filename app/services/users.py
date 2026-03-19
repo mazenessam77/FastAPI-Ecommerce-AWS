@@ -35,7 +35,9 @@ class UserService:
         if not db_user:
             ResponseHandler.not_found_error("User", user_id)
 
-        for key, value in updated_user.model_dump().items():
+        for key, value in updated_user.model_dump(exclude_none=True).items():
+            if key == 'password':
+                value = get_password_hash(value)
             setattr(db_user, key, value)
 
         db.commit()

@@ -9,8 +9,8 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, nullable=False, unique=True, autoincrement=True)
-    username = Column(String, unique=True, nullable=False)
-    email = Column(String, unique=True, nullable=False)
+    username = Column(String, unique=True, nullable=False, index=True)
+    email = Column(String, unique=True, nullable=False, index=True)
     password = Column(String, nullable=False)
     full_name = Column(String, nullable=False)
     is_active = Column(Boolean, server_default="True", nullable=False)
@@ -43,7 +43,7 @@ class Cart(Base):
     __tablename__ = "carts"
 
     id = Column(Integer, primary_key=True, nullable=False, unique=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     created_at = Column(TIMESTAMP(timezone=True), server_default=text("NOW()"), nullable=False)
     total_amount = Column(Float, nullable=False)
 
@@ -82,7 +82,7 @@ class Product(Base):
     __tablename__ = "products"
 
     id = Column(Integer, primary_key=True, nullable=False, unique=True, autoincrement=True)
-    title = Column(String, nullable=False)
+    title = Column(String, nullable=False, index=True)
     description = Column(String, nullable=False)
     price = Column(Integer, nullable=False)
     discount_percentage = Column(Float, nullable=False)

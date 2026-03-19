@@ -25,10 +25,14 @@ export const useAuthStore = create<AuthState>()(
       login: async (username, password) => {
         const tokens = await api.login(username, password);
         api.setToken(tokens.access_token);
-        set({
-          token: tokens.access_token,
-          isAuthenticated: true,
-        });
+        set({ token: tokens.access_token, isAuthenticated: true });
+        // Fetch user profile after login
+        try {
+          const me = await api.getMe();
+          set({ user: me.data });
+        } catch (_) {
+          // Non-blocking — auth still succeeds
+        }
       },
 
       logout: () => {
@@ -38,6 +42,12 @@ export const useAuthStore = create<AuthState>()(
 
       setUser: (user) => set({ user }),
     }),
-    { name: "ecommerce-auth" }
+    {
+      name: "ecommerce-auth",
+      // Restore token to api client when store rehydrates from localStorage
+      onRehydrateStorage: () => (state) => {
+        if (state?.token) api.setToken(state.token);
+      },
+    }
   )
 );
