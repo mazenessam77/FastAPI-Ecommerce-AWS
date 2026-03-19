@@ -67,6 +67,57 @@ PRODUCTS = [
 ]
 
 
+@router.get("/db/inspect", status_code=status.HTTP_200_OK, include_in_schema=False)
+def inspect_db(
+    x_seed_key: str = Header(alias="x-seed-key"),
+    db: Session = Depends(get_db),
+):
+    if x_seed_key != settings.seed_secret:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid seed key")
+
+    # All tables with row counts
+    tables = db.execute(text("""
+        SELECT
+            t.table_name,
+            (xpath('/row/cnt/text()',
+                   query_to_xml(format('SELECT COUNT(*) AS cnt FROM %I', t.table_name), true, true, ''))
+            )[1]::text::int AS row_count
+        FROM information_schema.tables t
+        WHERE t.table_schema = 'public'
+          AND t.table_type = 'BASE TABLE'
+        ORDER BY t.table_name
+    """)).fetchall()
+
+    # Column definitions per table
+    columns = db.execute(text("""
+        SELECT
+            c.table_name,
+            c.column_name,
+            c.data_type,
+            c.is_nullable,
+            c.column_default
+        FROM information_schema.columns c
+        WHERE c.table_schema = 'public'
+        ORDER BY c.table_name, c.ordinal_position
+    """)).fetchall()
+
+    schema: dict = {}
+    for col in columns:
+        schema.setdefault(col.table_name, []).append({
+            "column": col.column_name,
+            "type": col.data_type,
+            "nullable": col.is_nullable,
+            "default": col.column_default,
+        })
+
+    return {
+        "tables": [
+            {"table": row.table_name, "rows": row.row_count, "columns": schema.get(row.table_name, [])}
+            for row in tables
+        ]
+    }
+
+
 @router.post("/seed", status_code=status.HTTP_200_OK, include_in_schema=False)
 def seed_data(
     x_seed_key: str = Header(alias="x-seed-key"),

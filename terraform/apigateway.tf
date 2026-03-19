@@ -105,6 +105,13 @@ resource "aws_apigatewayv2_route" "carts" {
   target    = "integrations/${aws_apigatewayv2_integration.microservice["carts"].id}"
 }
 
+# Orders DB inspect (protected by x-seed-key, no JWT needed)
+resource "aws_apigatewayv2_route" "orders_inspect" {
+  api_id    = aws_apigatewayv2_api.main.id
+  route_key = "GET /orders/db/inspect"
+  target    = "integrations/${aws_apigatewayv2_integration.microservice["orders"].id}"
+}
+
 # Orders routes — JWT enforced in FastAPI; /orders/seed uses x-seed-key header
 resource "aws_apigatewayv2_route" "orders" {
   api_id    = aws_apigatewayv2_api.main.id
