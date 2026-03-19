@@ -38,6 +38,19 @@ resource "aws_apigatewayv2_stage" "prod" {
   }
 }
 
+# ── JWT Authorizer (kept to avoid destroy conflict — not referenced by any route) ──
+# Routes no longer use this authorizer; FastAPI validates JWT internally.
+# Safe to manually delete via console after this apply completes.
+resource "aws_apigatewayv2_authorizer" "jwt" {
+  api_id           = aws_apigatewayv2_api.main.id
+  name             = "${var.project_name}-jwt-authorizer"
+  authorizer_type  = "REQUEST"
+  authorizer_uri   = aws_lambda_function.microservice["auth"].invoke_arn
+
+  authorizer_payload_format_version = "2.0"
+  enable_simple_responses           = true
+}
+
 # ── Route → Lambda Integrations ──
 
 resource "aws_apigatewayv2_integration" "microservice" {
